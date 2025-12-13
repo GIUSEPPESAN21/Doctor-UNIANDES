@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Utilidades de Gemini AI - v3.0 (Scientific & Robust)
-Descripción: Lógica avanzada para CDSS (Clinical Decision Support System).
-Implementa razonamiento clínico estructurado y manejo robusto de modelos.
+Módulo de Utilidades de Gemini AI - v3.1 (Stable Fallback)
+Descripción: Lógica avanzada con manejo robusto de límites de cuota (Error 429).
+Prioriza modelos estables y eficientes.
 """
 import streamlit as st
 import google.generativeai as genai
 import logging
 import time
+import random
 from pypdf import PdfReader
+from google.api_core import exceptions
 
-# Configuración de Logging Profesional
+# Configuración de Logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -18,42 +20,59 @@ class GeminiUtils:
     def __init__(self):
         self.api_key = st.secrets.get('gemini_api_key')
         if not self.api_key:
-            logger.error("API Key no encontrada en secrets.")
+            logger.error("API Key no encontrada.")
             return 
         
         genai.configure(api_key=self.api_key)
-        self.model = self._get_best_model()
-
-    def _get_best_model(self):
-        """
-        Intenta conectar con la mejor jerarquía de modelos disponibles.
-        Patrón 'Chain of Responsibility' para fallback automático.
-        """
-        # Lista priorizada basada en benchmarks médicos (MedQA) y latencia
-        candidates = [
-            "gemini-2.0-flash-exp",    # SOTA Velocidad/Razonamiento
-            "gemini-1.5-pro",          # Contexto largo (Documentos)
-            "gemini-1.5-flash",        # Balanceado
-            "gemini-pro-vision",       # Multimodal legacy
-            "gemini-pro"               # Legacy texto
+        # Definimos modelos en orden de prioridad/estabilidad
+        self.models_priority = [
+            "gemini-1.5-flash",        # Rápido y estable (Tier gratuito generoso)
+            "gemini-1.5-pro",          # Mejor razonamiento
+            "gemini-2.0-flash-exp",    # Experimental (Suele dar 429)
+            "gemini-pro"               # Legacy
         ]
+        self.current_model_name = self.models_priority[0]
+        self.model = self._init_model(self.current_model_name)
+
+    def _init_model(self, model_name):
+        try:
+            return genai.GenerativeModel(model_name)
+        except Exception as e:
+            logger.error(f"Error init model {model_name}: {e}")
+            return None
+
+    def _generate_with_retry(self, prompt, config=None):
+        """
+        Intenta generar contenido manejando errores de cuota (429).
+        Si falla el modelo actual, intenta con el siguiente de la lista.
+        """
+        if not self.model: return "Error: IA no inicializada."
+
+        # Lista de intentos: modelo actual primero, luego los demás
+        attempt_order = [self.current_model_name] + [m for m in self.models_priority if m != self.current_model_name]
         
-        for model_name in candidates:
+        for model_name in attempt_order:
             try:
-                model = genai.GenerativeModel(model_name)
-                # Intento de 'ping' muy ligero para verificar vida
-                # model.generate_content("test", generation_config={'max_output_tokens': 1})
-                logger.info(f"Conectado exitosamente con: {model_name}")
-                return model
+                # Instanciar el modelo si cambiamos
+                active_model = genai.GenerativeModel(model_name)
+                
+                response = active_model.generate_content(
+                    prompt, 
+                    generation_config=config
+                )
+                return response.text
+                
+            except exceptions.ResourceExhausted:
+                logger.warning(f"Cuota excedida (429) en {model_name}. Intentando siguiente...")
+                time.sleep(1) # Breve pausa antes de reintentar
+                continue
             except Exception as e:
-                logger.warning(f"Fallo conexión con {model_name}: {e}")
+                logger.error(f"Error en generación con {model_name}: {e}")
                 continue
         
-        logger.critical("No se pudo iniciar ningún modelo de IA.")
-        return None
+        return "⚠️ Servicio de IA saturado momentáneamente. Por favor intente en 1 minuto."
 
     def extract_text_from_pdf(self, uploaded_file):
-        """Extracción de texto PDF robusta."""
         try:
             reader = PdfReader(uploaded_file)
             text = []
@@ -64,82 +83,42 @@ class GeminiUtils:
             return f"[Error sistémico leyendo PDF: {e}]"
 
     def analyze_clinical_document(self, text_content):
-        """
-        Análisis de Laboratorios basado en Rangos de Referencia.
-        Salida estructurada para toma de decisiones rápida.
-        """
-        if not self.model: return "Servicio de IA no disponible."
-        
         prompt = f"""
-        **CONTEXTO:** Eres un asistente de IA para auditoría médica y patología clínica.
-        **ENTRADA:** Texto extraído de un reporte médico/laboratorio.
+        **ROL:** Auditor Médico IA.
+        **TAREA:** Analizar reporte y listar HALLAZGOS ANORMALES.
         
-        **INSTRUCCIONES:**
-        1. **Detectar Anomalías:** Extrae SOLO los valores que están fuera de los rangos de referencia explícitos o implícitos.
-        2. **Interpretación Fisiopatológica:** Para cada anomalía, explica en 1 frase la posible causa (ej. anemia ferropénica, infección bacteriana).
-        3. **Formato:** Usa Markdown con viñetas claras. Si todo es normal, indícalo.
-
-        --- REPORTE ---
-        {text_content[:15000]}
+        **TEXTO:**
+        {text_content[:10000]}
+        
+        **FORMATO SALIDA:**
+        - ⚠️ [Hallazgo 1]: [Interpretación breve]
+        - ⚠️ [Hallazgo 2]: [Interpretación breve]
+        (Si todo normal: "✅ Sin hallazgos patológicos evidentes")
         """
-        try:
-            response = self.model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            return f"Error en análisis documental: {e}"
+        return self._generate_with_retry(prompt)
 
     @st.cache_data(show_spinner=False, ttl=600)
     def generate_ai_holistic_review(_self, patient_info, latest_consultation, history_summary):
         """
-        Sistema de Soporte a la Decisión Clínica (CDSS).
-        Utiliza metodología SOAP (Subjetivo, Objetivo, Análisis, Plan) modificada para output de IA.
+        CDSS: Soporte a la decisión clínica.
         """
-        if not _self.model:
-            return "⚠️ Sistema CDSS Offline."
-
-        # Prompt Ingenieril basado en 'Chain of Thought' (CoT) para medicina
         prompt = f"""
-        Actúa como un Comité Médico Interdisciplinario. Analiza el siguiente caso:
-
-        **PACIENTE:** {patient_info.get('nombre')} ({patient_info.get('edad')} años).
+        **CASO CLÍNICO:**
+        Paciente: {patient_info.get('nombre', 'N/A')} ({patient_info.get('edad', '?')} años).
+        Consulta: {latest_consultation.get('motivo_consulta', 'Sin datos')}
+        Signos: PA {latest_consultation.get('presion_sistolica')}/{latest_consultation.get('presion_diastolica')}, Glu {latest_consultation.get('glucemia')}.
         
-        **DATOS ACTUALES:**
-        - MC: {latest_consultation.get('motivo_consulta')}
-        - Signos: PA {latest_consultation.get('presion_sistolica')}/{latest_consultation.get('presion_diastolica')}, FC {latest_consultation.get('frec_cardiaca')}, IMC {latest_consultation.get('imc')}.
-        - Síntomas: {latest_consultation.get('sintomas_cardio')} (CV), {latest_consultation.get('sintomas_resp')} (Resp).
-        
-        **CONTEXTO HISTÓRICO:**
+        **HISTORIAL:**
         {history_summary}
 
-        **GENERAR INFORME CLÍNICO ESTRUCTURADO:**
-        
-        ### 1. 🏥 Impresión Diagnóstica (Assessment)
-        *   **Diagnóstico Principal:** (El más probable fisiopatológicamente).
-        *   **Justificación:** (Correlación síntoma-signo).
-        *   **Diagnósticos Diferenciales:** (Listar 2 con breve descarte).
-
-        ### 2. ⚠️ Estratificación de Riesgo
-        *   **Nivel:** (Bajo / Moderado / Alto / Crítico).
-        *   **Score Sugerido:** (ej. TIMI, HEART, Wells si aplica, o criterio clínico general).
-        *   **Alertas:** (Signos de alarma presentes).
-
-        ### 3. 📝 Plan de Manejo (Plan)
-        *   **Paraclínicos:** (Estudios a solicitar priorizados).
-        *   **Terapéutica Inicial:** (Grupos farmacológicos o medidas de soporte).
-        *   **Recomendaciones:** (Educación al paciente, signos de alarma para re-consultar).
-
-        Mantén un tono académico, directo y basado en evidencia.
+        **ANÁLISIS ESTRUCTURADO (Responde médico a médico):**
+        1. **Diagnóstico Mas Probable:** Justificación breve.
+        2. **Alerta de Riesgo:** (Bajo/Medio/Alto) basado en signos vitales.
+        3. **Plan Sugerido:** 3 acciones concretas (Lab, Meds, Hábitos).
         """
         
-        try:
-            # Configuración para reducir alucinaciones
-            safe_config = genai.types.GenerationConfig(
-                temperature=0.1,    # Casi determinista para medicina
-                top_p=0.85,
-                top_k=40,
-                max_output_tokens=2048
-            )
-            response = _self.model.generate_content(prompt, generation_config=safe_config)
-            return response.text
-        except Exception as e:
-            return f"Error en generación CDSS: {e}"
+        config = genai.types.GenerationConfig(
+            temperature=0.3, # Balanceado
+            max_output_tokens=1024
+        )
+        return _self._generate_with_retry(prompt, config)
