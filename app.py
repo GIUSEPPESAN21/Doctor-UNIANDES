@@ -244,7 +244,7 @@ def render_login():
         """, unsafe_allow_html=True)
 
 def render_control_panel():
-    # Header CON logout integrado
+    # Header con logout integrado
     ui.render_hero_header_with_logout(
         st.session_state.physician_email,
         on_logout=lambda: (
@@ -259,31 +259,35 @@ def render_control_panel():
     with tab_main:
         pats = firebase_utils.get_physician_patients(st.session_state.physician_email)
         
-        col_list, col_add = st.columns([1.5, 1])
+        col_list, col_add = st.columns([1.6, 1])
         with col_list:
             st.subheader("📋 Mis Pacientes")
-            search = st.text_input("🔍", label_visibility="collapsed", placeholder="Buscar paciente...")
-            filtered = [p for p in pats if search.lower() in p['nombre'].lower()] if search else pats
+            # Barra de búsqueda con placeholder claro
+            search = st.text_input("Buscar", label_visibility="collapsed", placeholder="🔍 Buscar paciente por nombre...")
+            filtered = [p for p in pats if search.lower() in p.get('nombre', '').lower()] if search else pats
             
             if not filtered:
-                st.info("No hay pacientes registrados.")
+                st.info("No hay pacientes registrados. Agregue uno nuevo →")
             else:
                 for p in filtered:
                     ui.render_patient_card_item(p, lambda pid: st.session_state.update(selected_patient_id=pid, page='patient_dashboard'))
                 
         with col_add:
             st.markdown('<div class="card-container">', unsafe_allow_html=True)
-            st.subheader("➕ Nuevo Paciente")
+            st.markdown("### ➕ Nuevo Paciente")
             with st.form("new_patient_form"):
-                n = st.text_input("Nombre Completo")
-                c = st.text_input("Documento ID")
-                e = st.number_input("Edad", step=1, min_value=0, max_value=120)
-                t = st.text_input("Teléfono")
-                if st.form_submit_button("Guardar", type="primary", use_container_width=True):
+                n = st.text_input("Nombre Completo", placeholder="Ej: Juan Pérez")
+                c = st.text_input("Documento ID", placeholder="Ej: 1234567890")
+                e = st.number_input("Edad", step=1, min_value=0, max_value=120, value=30)
+                t = st.text_input("Teléfono", placeholder="Ej: 300 123 4567")
+                st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
+                if st.form_submit_button("Guardar Paciente", type="primary", use_container_width=True):
                     if n and c:
                         firebase_utils.save_new_patient(st.session_state.physician_email, {
                             "nombre": n, "cedula": c, "edad": e, "telefono": t
                         })
+                        st.success("✅ Paciente registrado")
+                        time.sleep(0.5)
                         st.rerun()
                     else:
                         st.warning("Nombre e ID son obligatorios")

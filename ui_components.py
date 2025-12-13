@@ -1,121 +1,189 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Componentes de Interfaz de Usuario (UI) - v6.0 FIXED
-Diseño Premium SIN comentarios HTML que rompan el render.
+Módulo de Componentes UI - v7.0 POLISHED
+Todas las correcciones de UI/UX aplicadas.
 """
 import streamlit as st
 import pandas as pd
 
 # ==============================================================================
-# CSS PREMIUM
+# CSS PREMIUM - CORREGIDO
 # ==============================================================================
 def load_custom_css():
-    """Inyecta CSS premium."""
+    """CSS pulido con todas las correcciones."""
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
         :root {
-            --primary: #0066FF;
-            --primary-dark: #0052CC;
-            --primary-light: #E6F0FF;
-            --success: #00C853;
-            --warning: #FF9800;
-            --danger: #F44336;
+            /* Paleta Médica SOBRIA - más clínica y calmada */
+            --primary: #0A6DC2;           /* Azul más sobrio/profesional */
+            --primary-dark: #085A9E;
+            --primary-light: #E8F4FC;
+            --primary-gradient: linear-gradient(135deg, #0A6DC2 0%, #0891B2 100%); /* Azul a Cian */
+            
+            --success: #059669;
+            --warning: #D97706;
+            --danger: #DC2626;
+            
             --bg-primary: #F8FAFC;
-            --bg-secondary: #FFFFFF;
-            --text-primary: #0F172A;
+            --bg-card: #FFFFFF;
+            --text-primary: #1E293B;
             --text-secondary: #64748B;
+            --text-muted: #94A3B8;
             --border: #E2E8F0;
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
-            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            --border-focus: #0A6DC2;
+            
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+            
+            --radius-sm: 8px;
             --radius-md: 12px;
             --radius-lg: 16px;
         }
 
         html, body, [class*="css"] {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
         }
         
         .stApp {
-            background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 50%, #F0F9FF 100%) !important;
+            background: linear-gradient(180deg, #F0F9FF 0%, #F8FAFC 100%) !important;
         }
 
         h1 {
-            font-size: 2.25rem !important;
+            font-size: 2rem !important;
             font-weight: 800 !important;
-            background: linear-gradient(135deg, #0066FF, #00C2FF);
+            background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
-        h2, h3 { font-weight: 700; }
+        h2, h3 { font-weight: 700; color: var(--text-primary); }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .main > div { animation: fadeIn 0.4s ease-out; }
-
-        .card-container, .medical-card {
-            background: white;
-            border-radius: var(--radius-lg);
-            padding: 1.5rem;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-md);
-        }
-
-        .badge {
-            display: inline-flex;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 0.75rem;
+        /* === TABS - Línea AZUL en vez de roja === */
+        button[data-baseweb="tab"] {
+            font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
         }
         
-        .badge-blue { background: #E6F0FF; color: #0066FF; }
-        .badge-green { background: #E8F5E9; color: #00C853; }
-        .badge-red { background: #FFEBEE; color: #F44336; }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: var(--primary) !important;
+            border-bottom: 3px solid var(--primary) !important;
+            background: transparent !important;
+        }
+        
+        button[data-baseweb="tab"]:hover {
+            color: var(--primary);
+        }
+        
+        /* Eliminar cualquier línea roja residual */
+        div[data-baseweb="tab-highlight"] {
+            background-color: var(--primary) !important;
+        }
+        
+        div[data-baseweb="tab-border"] {
+            background-color: var(--border) !important;
+        }
 
+        /* === INPUTS - Fondo BLANCO con borde suave === */
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stNumberInput"] input,
+        div[data-testid="stTextArea"] textarea,
+        div[data-testid="stSelectbox"] > div > div {
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            background: #FFFFFF !important;
+            border: 1.5px solid var(--border) !important;
+            border-radius: var(--radius-md) !important;
+            padding: 0.75rem 1rem !important;
+            font-size: 0.9375rem !important;
+            color: var(--text-primary) !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        div[data-testid="stTextInput"] input:focus,
+        div[data-testid="stNumberInput"] input:focus,
+        div[data-testid="stTextArea"] textarea:focus {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(10, 109, 194, 0.12) !important;
+            outline: none !important;
+        }
+        
+        div[data-testid="stTextInput"] input::placeholder,
+        div[data-testid="stTextArea"] textarea::placeholder {
+            color: var(--text-muted) !important;
+        }
+
+        /* === BOTONES === */
         div[data-testid="stButton"] > button {
             font-family: 'Plus Jakarta Sans', sans-serif;
             font-weight: 600;
             border-radius: var(--radius-md);
             transition: all 0.2s ease;
+            font-size: 0.875rem;
         }
         
         div[data-testid="stButton"] > button[kind="primary"] {
-            background: linear-gradient(135deg, #0066FF, #0052CC);
+            background: var(--primary-gradient);
             color: white;
-            box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);
+            border: none;
+            box-shadow: 0 4px 12px rgba(10, 109, 194, 0.25);
         }
         
         div[data-testid="stButton"] > button[kind="primary"]:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.45);
-        }
-
-        div[data-testid="stTextInput"] input,
-        div[data-testid="stNumberInput"] input,
-        div[data-testid="stTextArea"] textarea {
-            border-radius: var(--radius-md) !important;
-            border: 2px solid var(--border) !important;
-            padding: 0.75rem 1rem !important;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(10, 109, 194, 0.35);
         }
         
-        div[data-testid="stTextInput"] input:focus,
-        div[data-testid="stNumberInput"] input:focus {
-            border-color: var(--primary) !important;
-            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.15) !important;
+        /* Ghost Button - Para "Ver" */
+        div[data-testid="stButton"] > button[kind="secondary"] {
+            background: transparent !important;
+            color: var(--primary) !important;
+            border: none !important;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        div[data-testid="stButton"] > button[kind="secondary"]:hover {
+            background: var(--primary-light) !important;
         }
 
-        button[data-baseweb="tab"][aria-selected="true"] {
-            background: white;
-            color: var(--primary);
-            border-bottom: 3px solid var(--primary);
+        /* === CARDS === */
+        .card-container, .medical-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* === BADGES === */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .badge-blue { background: var(--primary-light); color: var(--primary); }
+        .badge-green { background: #ECFDF5; color: #059669; }
+
+        /* === Mejora general del espaciado === */
+        section[data-testid="stSidebar"] { display: none; }
+        
+        /* Hacer que los dividers sean más sutiles */
+        hr {
+            border: none;
+            height: 1px;
+            background: var(--border);
+            margin: 1.25rem 0;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -125,51 +193,67 @@ def load_custom_css():
 # ==============================================================================
 
 def render_hero_header_with_logout(physician_email, on_logout):
-    """Header Hero CON botón de logout integrado."""
-    name = physician_email.split('@')[0].title() if physician_email else "Doctor"
+    """Header Hero con logout INTEGRADO dentro de la barra azul."""
+    # Limpiar nombre: quitar punto, capitalizar
+    if physician_email:
+        name_part = physician_email.split('@')[0]
+        name_clean = name_part.replace('.', ' ').replace('_', ' ').title()
+    else:
+        name_clean = "Doctor"
     
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, #0066FF 0%, #00C2FF 100%);
-                padding: 1.5rem 2rem;
-                border-radius: 16px;
-                color: white;
-                box-shadow: 0 10px 40px rgba(0, 102, 255, 0.25);
-            ">
-                <p style="margin: 0; font-size: 0.85rem; opacity: 0.9;">👋 Bienvenido de nuevo</p>
-                <h2 style="margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: 800; color: white;">Dr. {name}</h2>
-                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; opacity: 0.85;">Panel de Control | SaludIA</p>
-            </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("🚪 Salir", type="secondary", use_container_width=True):
-            on_logout()
-
-def render_hero_header(physician_email):
-    """Header Hero simple (sin logout)."""
-    name = physician_email.split('@')[0].title() if physician_email else "Doctor"
     st.markdown(f"""
         <div style="
-            background: linear-gradient(135deg, #0066FF 0%, #00C2FF 100%);
+            background: linear-gradient(135deg, #0A6DC2 0%, #0891B2 100%);
             padding: 1.5rem 2rem;
             border-radius: 16px;
             color: white;
             margin-bottom: 1.5rem;
-            box-shadow: 0 10px 40px rgba(0, 102, 255, 0.25);
+            box-shadow: 0 8px 30px rgba(10, 109, 194, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        ">
+            <div>
+                <p style="margin: 0; font-size: 0.85rem; opacity: 0.9; font-weight: 500;">👋 Bienvenido de nuevo</p>
+                <h2 style="margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: 800; color: white;">Dr. {name_clean}</h2>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; opacity: 0.85;">Panel de Control | SaludIA</p>
+            </div>
+            <div id="logout-placeholder"></div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Botón de logout usando Streamlit (se renderiza después del HTML)
+    cols = st.columns([6, 1])
+    with cols[1]:
+        if st.button("🚪 Salir", key="logout_integrated", type="secondary"):
+            on_logout()
+
+def render_hero_header(physician_email):
+    """Header simple sin logout."""
+    if physician_email:
+        name_part = physician_email.split('@')[0]
+        name_clean = name_part.replace('.', ' ').replace('_', ' ').title()
+    else:
+        name_clean = "Doctor"
+        
+    st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #0A6DC2 0%, #0891B2 100%);
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 30px rgba(10, 109, 194, 0.2);
         ">
             <p style="margin: 0; font-size: 0.85rem; opacity: 0.9;">👋 Bienvenido de nuevo</p>
-            <h2 style="margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: 800; color: white;">Dr. {name}</h2>
+            <h2 style="margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: 800; color: white;">Dr. {name_clean}</h2>
             <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; opacity: 0.85;">Panel de Control | SaludIA</p>
         </div>
     """, unsafe_allow_html=True)
 
-def card_metric(label, value, delta=None, color_hex="#0066FF"):
+def card_metric(label, value, delta=None, color_hex="#0A6DC2"):
     """Tarjeta KPI."""
-    delta_html = f"<div style='font-size:0.8rem; color:#00C853; margin-top:6px;'>▲ {delta}</div>" if delta else ""
+    delta_html = f"<div style='font-size:0.8rem; color:#059669; margin-top:6px;'>▲ {delta}</div>" if delta else ""
     st.markdown(f"""
         <div style="
             background: white;
@@ -177,30 +261,46 @@ def card_metric(label, value, delta=None, color_hex="#0066FF"):
             border-radius: 14px;
             border: 1px solid #E2E8F0;
             border-left: 4px solid {color_hex};
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
         ">
             <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; font-weight: 600;">{label}</div>
-            <div style="font-size: 1.75rem; font-weight: 800; color: #0F172A; margin-top: 4px;">{value}</div>
+            <div style="font-size: 1.75rem; font-weight: 800; color: #1E293B; margin-top: 4px;">{value}</div>
             {delta_html}
         </div>
     """, unsafe_allow_html=True)
 
 def render_patient_card_item(patient, on_click):
-    """Tarjeta de paciente."""
+    """Tarjeta de paciente LIMPIA - sin markdown visible."""
+    # Limpiar nombre de asteriscos y markdown
+    nombre = str(patient.get('nombre', 'Sin nombre'))
+    nombre_limpio = nombre.replace('**', '').replace('*', '').strip()
+    
+    edad = patient.get('edad', '?')
+    cedula = patient.get('cedula', 'N/A')
+    
     with st.container():
-        col1, col2, col3 = st.columns([3, 1.5, 1])
+        col1, col2, col3 = st.columns([3.5, 1.2, 0.8])
         with col1:
-            st.markdown(f"**{patient['nombre']}**")
-            st.caption(f"ID: {patient['cedula']}")
+            st.markdown(f"""
+                <div style="padding: 8px 0;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: #1E293B;">{nombre_limpio}</div>
+                    <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 2px;">ID: {cedula}</div>
+                </div>
+            """, unsafe_allow_html=True)
         with col2:
-            st.markdown(f"<span style='background:#E6F0FF; color:#0066FF; padding:4px 10px; border-radius:999px; font-size:0.75rem; font-weight:600;'>{patient.get('edad', '?')} años</span>", unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="display: flex; align-items: center; height: 100%; padding: 8px 0;">
+                    <span style="background: #E8F4FC; color: #0A6DC2; padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;">{edad} años</span>
+                </div>
+            """, unsafe_allow_html=True)
         with col3:
-            if st.button("Ver →", key=f"p_{patient['id']}", type="secondary"):
+            if st.button("→", key=f"p_{patient['id']}", type="secondary", help="Ver historial"):
                 on_click(patient['id'])
-        st.markdown("<hr style='margin:8px 0; border:0; border-top:1px solid #E2E8F0;'>", unsafe_allow_html=True)
+        
+        st.markdown("<hr style='margin: 4px 0; border: 0; border-top: 1px solid #F1F5F9;'>", unsafe_allow_html=True)
 
 def render_consultation_timeline_item(consultation, on_ai_click):
-    """Timeline item - CORREGIDO sin comentarios HTML."""
+    """Timeline item limpio."""
     ts = consultation.get('timestamp')
     try:
         if ts is None or str(ts) == 'NaT':
@@ -217,74 +317,47 @@ def render_consultation_timeline_item(consultation, on_ai_click):
     try:
         bp = int(consultation.get('presion_sistolica', 0) or 0)
         if bp >= 140:
-            badges = "<span style='background:#FFEBEE; color:#F44336; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:600;'>⚠️ HTA</span>"
+            badges = "<span style='background:#FEE2E2; color:#DC2626; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:600;'>⚠️ HTA</span>"
         elif 0 < bp < 90:
-            badges = "<span style='background:#FFF3E0; color:#FF9800; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:600;'>⚡ Hipotensión</span>"
+            badges = "<span style='background:#FEF3C7; color:#D97706; padding:3px 10px; border-radius:999px; font-size:0.7rem; font-weight:600;'>⚡ Hipotensión</span>"
     except: pass
     
-    # Motivo
-    motivo = str(consultation.get('motivo_consulta', 'Sin motivo'))[:80]
-    if len(str(consultation.get('motivo_consulta', ''))) > 80:
+    # Limpiar motivo de asteriscos
+    motivo_raw = str(consultation.get('motivo_consulta', 'Sin motivo'))
+    motivo = motivo_raw.replace('**', '').replace('*', '')[:80]
+    if len(motivo_raw) > 80:
         motivo += "..."
     
-    # Vitales
     pa_s = consultation.get('presion_sistolica', 'N/A')
     pa_d = consultation.get('presion_diastolica', 'N/A')
     fc = consultation.get('frec_cardiaca', 'N/A')
     glu = consultation.get('glucemia', 'N/A')
     imc = consultation.get('imc', 'N/A')
 
-    # Render con Streamlit columns para evitar HTML crudo
-    with st.container():
-        st.markdown(f"""
-        <div style="
-            display: flex;
-            gap: 15px;
-            margin-bottom: 1rem;
-        ">
-            <div style="
-                width: 12px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            ">
-                <div style="width:12px; height:12px; background:#0066FF; border:3px solid white; border-radius:50%; box-shadow:0 0 0 3px #E6F0FF;"></div>
-                <div style="width:2px; flex:1; background:linear-gradient(180deg, #0066FF, #E6F0FF);"></div>
-            </div>
-            <div style="flex:1;">
-                <div style="font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:#64748B; font-weight:600; margin-bottom:6px;">{date_str}</div>
-                <div style="
-                    background: white;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 12px;
-                    padding: 1rem;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-                ">
-                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
-                        <div style="font-weight:700; color:#0F172A;">{motivo}</div>
-                        <div>{badges}</div>
-                    </div>
-                    <div style="
-                        display: grid;
-                        grid-template-columns: repeat(4, 1fr);
-                        gap: 8px;
-                        background: #F8FAFC;
-                        padding: 10px;
-                        border-radius: 8px;
-                        text-align: center;
-                        font-size: 0.85rem;
-                    ">
-                        <div><span style="color:#94A3B8; font-size:0.65rem;">PA</span><br><b>{pa_s}/{pa_d}</b></div>
-                        <div><span style="color:#94A3B8; font-size:0.65rem;">FC</span><br><b>{fc}</b></div>
-                        <div><span style="color:#94A3B8; font-size:0.65rem;">GLU</span><br><b>{glu}</b></div>
-                        <div><span style="color:#94A3B8; font-size:0.65rem;">IMC</span><br><b>{imc}</b></div>
-                    </div>
+    st.markdown(f"""
+    <div style="display: flex; gap: 15px; margin-bottom: 1.25rem;">
+        <div style="width: 12px; display: flex; flex-direction: column; align-items: center;">
+            <div style="width:12px; height:12px; background:#0A6DC2; border:3px solid white; border-radius:50%; box-shadow:0 0 0 3px #E8F4FC;"></div>
+            <div style="width:2px; flex:1; background:linear-gradient(180deg, #0A6DC2, #E8F4FC);"></div>
+        </div>
+        <div style="flex:1;">
+            <div style="font-size:0.8rem; color:#64748B; font-weight:600; margin-bottom:6px; font-family: monospace;">{date_str}</div>
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
+                    <div style="font-weight:600; color:#1E293B; font-size:0.95rem;">{motivo}</div>
+                    <div>{badges}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #F8FAFC; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.85rem;">
+                    <div><span style="color:#94A3B8; font-size:0.65rem; text-transform:uppercase;">PA</span><br><b style="color:#1E293B;">{pa_s}/{pa_d}</b></div>
+                    <div><span style="color:#94A3B8; font-size:0.65rem; text-transform:uppercase;">FC</span><br><b style="color:#1E293B;">{fc}</b></div>
+                    <div><span style="color:#94A3B8; font-size:0.65rem; text-transform:uppercase;">GLU</span><br><b style="color:#1E293B;">{glu}</b></div>
+                    <div><span style="color:#94A3B8; font-size:0.65rem; text-transform:uppercase;">IMC</span><br><b style="color:#1E293B;">{imc}</b></div>
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
     
-    # AI Analysis
     ai = consultation.get('ai_analysis')
     if ai and ai != "N/A":
         with st.expander("🤖 Ver Análisis de IA"):
@@ -295,52 +368,32 @@ def render_consultation_timeline_item(consultation, on_ai_click):
             on_ai_click(consultation['id'])
 
 def render_about_section():
-    """Sección Acerca de - Interactiva con métricas."""
+    """Sección Acerca de - Interactiva."""
     st.markdown("""
-        <div style="text-align:center; padding:2rem 0;">
-            <h2 style="color:#0066FF; margin-bottom:0.5rem;">🩺 SaludIA</h2>
+        <div style="text-align:center; padding:1.5rem 0;">
+            <h2 style="color:#0A6DC2; margin-bottom:0.5rem;">🩺 SaludIA</h2>
             <p style="color:#64748B; font-size:1rem;">Sistema de Soporte a la Decisión Clínica</p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Métricas en lugar de texto
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown("""
-            <div style="text-align:center; background:white; padding:1rem; border-radius:12px; border:1px solid #E2E8F0;">
-                <div style="font-size:2rem;">🧠</div>
-                <div style="font-weight:700; color:#0F172A;">IA Gemini</div>
-                <div style="font-size:0.8rem; color:#64748B;">Análisis clínico</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-            <div style="text-align:center; background:white; padding:1rem; border-radius:12px; border:1px solid #E2E8F0;">
-                <div style="font-size:2rem;">📊</div>
-                <div style="font-weight:700; color:#0F172A;">Visualización</div>
-                <div style="font-size:0.8rem; color:#64748B;">Tendencias vitales</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown("""
-            <div style="text-align:center; background:white; padding:1rem; border-radius:12px; border:1px solid #E2E8F0;">
-                <div style="font-size:2rem;">📄</div>
-                <div style="font-weight:700; color:#0F172A;">PDF</div>
-                <div style="font-size:0.8rem; color:#64748B;">Reportes y recetas</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with c4:
-        st.markdown("""
-            <div style="text-align:center; background:white; padding:1rem; border-radius:12px; border:1px solid #E2E8F0;">
-                <div style="font-size:2rem;">🔒</div>
-                <div style="font-weight:700; color:#0F172A;">Seguro</div>
-                <div style="font-size:0.8rem; color:#64748B;">Datos en Firebase</div>
-            </div>
-        """, unsafe_allow_html=True)
+    features = [
+        ("🧠", "IA Gemini", "Análisis clínico"),
+        ("📊", "Visualización", "Tendencias vitales"),
+        ("📄", "PDF", "Reportes y recetas"),
+        ("🔒", "Seguro", "Datos en Firebase"),
+    ]
+    for col, (icon, title, desc) in zip([c1, c2, c3, c4], features):
+        with col:
+            st.markdown(f"""
+                <div style="text-align:center; background:white; padding:1rem; border-radius:12px; border:1px solid #E2E8F0;">
+                    <div style="font-size:1.75rem;">{icon}</div>
+                    <div style="font-weight:700; color:#1E293B; margin-top:0.5rem;">{title}</div>
+                    <div style="font-size:0.8rem; color:#64748B;">{desc}</div>
+                </div>
+            """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Créditos compactos
     st.markdown("""
         <div style="text-align:center; color:#94A3B8; font-size:0.85rem;">
             <p>Desarrollado por <b>Joseph Javier Sánchez Acuña</b> | CEO de SAVA</p>
