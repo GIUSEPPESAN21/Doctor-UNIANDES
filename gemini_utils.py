@@ -1,131 +1,133 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Utilidades de Gemini AI
-Descripción: Maneja la conexión con la API de Google Generative AI,
-la selección automática de modelos disponibles y la generación de
-análisis clínicos a partir de los datos del paciente.
+Módulo de Utilidades de Gemini AI - v2.0 (Deep Diagnostic Logic)
+Descripción: Lógica avanzada para diagnóstico diferencial, análisis de documentos
+y predicción de riesgo clínico.
 """
-# --- LIBRERÍAS ---
 import streamlit as st
 import google.generativeai as genai
 import logging
+import time
+from pypdf import PdfReader
+from io import BytesIO
 
-# Configuración del logging para monitorear la selección de modelos
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GeminiUtils:
     def __init__(self):
-        """
-        Inicializa la conexión con la API de Gemini y selecciona un modelo funcional.
-        """
         self.api_key = st.secrets.get('gemini_api_key')
         if not self.api_key:
-            raise ValueError("La 'gemini_api_key' no fue encontrada en los secretos de Streamlit.")
+            # Fallback seguro por si no hay secrets (evita crash inmediato)
+            return 
         
         genai.configure(api_key=self.api_key)
         self.model = self._get_available_model()
 
     def _get_available_model(self):
-        """
-        Intenta inicializar modelos de una lista predefinida en orden de preferencia.
-        Retorna la primera instancia de modelo que funcione.
-        """
-        # Lista de modelos actualizada para 2025, de más nuevo a más estable
+        # Priorizar modelos capaces de razonamiento complejo y multimodal
         model_list = [
-            "gemini-2.0-flash-exp",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro-latest",
+            "gemini-1.5-pro", # Mejor para documentos/contexto largo
             "gemini-1.5-flash",
-            "gemini-1.5-pro",
+            "gemini-pro"
         ]
         
         for model_name in model_list:
             try:
                 model = genai.GenerativeModel(model_name)
-                logger.info(f"Éxito: Modelo '{model_name}' inicializado correctamente.")
-                # st.toast(f"Modelo IA conectado: {model_name}", icon="🤖")
+                # Test de conexión rápido
+                # model.generate_content("Ping") 
+                # (Comentado para no gastar cuota/tiempo en init, confiamos en la instanciación)
                 return model
-            except Exception as e:
-                logger.warning(f"Fallo: Modelo '{model_name}' no disponible. Error: {e}")
+            except Exception:
                 continue
-        
-        logger.error("Error crítico: No se pudo inicializar ningún modelo de Gemini.")
-        raise Exception("No se pudo conectar con ningún modelo de IA. Verifique la API Key y la disponibilidad del servicio.")
+        return None
 
-    @st.cache_data(show_spinner="Generando análisis y recomendaciones con IA...", ttl=300)
+    def extract_text_from_pdf(self, uploaded_file):
+        """Extrae texto de un archivo PDF en memoria."""
+        try:
+            reader = PdfReader(uploaded_file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text()
+            return text
+        except Exception as e:
+            return f"[Error leyendo PDF: {e}]"
+
+    def analyze_clinical_document(self, text_content):
+        """Analiza texto de laboratorios/imágenes para encontrar anomalías."""
+        if not self.model: return "IA no configurada."
+        
+        prompt = f"""
+        **ACTÚA COMO UN PATÓLOGO CLIÍNICO SENIOR.**
+        Analiza el siguiente texto extraído de un reporte de laboratorio/imagenología:
+        
+        "{text_content[:8000]}" ... (truncado si es muy largo)
+        
+        **TAREA:**
+        1. Identifica TODOS los valores fuera de rango o hallazgos anormales.
+        2. Para cada anomalía, explica brevemente su posible significado clínico en un contexto general.
+        3. Si todo parece normal, indícalo claramente.
+        
+        Salida en formato Markdown conciso.
+        """
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"Error analizando documento: {e}"
+
+    @st.cache_data(show_spinner=False, ttl=600)
     def generate_ai_holistic_review(_self, patient_info, latest_consultation, history_summary):
         """
-        Genera un análisis clínico integral utilizando el modelo de IA seleccionado.
-        El guion bajo en _self es una convención para que st.cache_data ignore el
-        parámetro 'self' del objeto y cachee la función correctamente.
+        Genera un diagnóstico diferencial probabilístico de alto nivel.
         """
         if not _self.model:
-            return "Error: El modelo de IA no está inicializado. No se puede generar el análisis."
+            return "⚠️ Error: Modelo de IA no conectado. Verifique API Key."
 
-        generation_config = {
-            "temperature": 0.3,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 4096,
-        }
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ]
-
+        # Construcción de contexto clínico rico
         prompt = f"""
-        **ROL Y OBJETIVO:** Eres un médico especialista en medicina interna y cardiología. Tu objetivo es actuar como un co-piloto para otro médico, analizando los datos de un paciente para generar un reporte clínico estructurado, profesional y accionable.
-
-        **CONTEXTO DEL PACIENTE:**
-        - Nombre: {str(patient_info.get('nombre', 'No especificado'))}
-        - Edad: {str(patient_info.get('edad', 'No especificada'))} años
+        **ROL:** Eres un ESPECIALISTA EN MEDICINA INTERNA de clase mundial (tipo Dr. House pero empático).
+        Tu trabajo no es solo resumir, sino **PREDECIR y DIAGNOSTICAR**.
         
-        **DATOS DE LA CONSULTA ACTUAL:**
-        - Motivo: {str(latest_consultation.get('motivo_consulta', 'No especificado'))}
-        - Signos Vitales: PA {str(latest_consultation.get('presion_sistolica', 'N/A'))}/{str(latest_consultation.get('presion_diastolica', 'N/A'))} mmHg, Glucemia {str(latest_consultation.get('glucemia', 'N/A'))} mg/dL, IMC {str(latest_consultation.get('imc', 'N/A'))} kg/m².
-        - Síntomas Relevantes: Cardiovascular({str(latest_consultation.get('sintomas_cardio', []))}), Respiratorio({str(latest_consultation.get('sintomas_resp', []))}), Metabólico({str(latest_consultation.get('sintomas_metabolico', []))})
-
-        **RESUMEN DEL HISTORIAL PREVIO:**
+        **PACIENTE:**
+        - Nombre: {patient_info.get('nombre', 'N/A')} | Edad: {patient_info.get('edad', '?')} años.
+        
+        **CONSULTA ACTUAL:**
+        - Motivo: "{latest_consultation.get('motivo_consulta', 'N/A')}"
+        - Vitales: PA {latest_consultation.get('presion_sistolica')}/{latest_consultation.get('presion_diastolica')}, FC {latest_consultation.get('frec_cardiaca')}, Glu {latest_consultation.get('glucemia')}, IMC {latest_consultation.get('imc')}.
+        - Síntomas: {latest_consultation.get('sintomas_cardio')} / {latest_consultation.get('sintomas_resp')}.
+        
+        **HISTORIAL PREVIO (Resumen):**
         {history_summary}
+        
+        **INSTRUCCIONES DE RESPUESTA ("The Clinical Insight"):**
+        Usa formato Markdown profesional.
+        
+        1.  **🔍 HIPÓTESIS DIAGNÓSTICA PRINCIPAL (Probabilidad Alta):**
+            *   Da un diagnóstico claro. Justifica con los signos/síntomas presentes.
+            *   *Ejemplo: "Insuficiencia Cardíaca Descompensada (NYHA II) debido a..."*
+            
+        2.  **⚖️ DIAGNÓSTICOS DIFERENCIALES (Barajar opciones):**
+            *   Lista 2-3 alternativas plausibles y por qué se deben descartar o considerar.
+            
+        3.  **🔮 PREDICCIÓN DE RIESGO (Machine Learning Style Logic):**
+            *   Estima el riesgo de complicaciones a 30 días (Bajo/Medio/Alto).
+            *   Menciona qué "Red Flag" activó esta alerta (ej. Hipertensión sostenida + Disnea).
+            
+        4.  **💊 CONDUCTA MÉDICA RECOMENDADA:**
+            *   **Laboratorios a pedir:** (Sé específico).
+            *   **Tratamiento Inicial:** (Principio activo y mecanismo, NO dosis específicas por seguridad).
+            *   **Recomendaciones para el Paciente:** (Estilo de vida).
 
-        **TAREA: Genera el reporte usando estrictamente el siguiente formato Markdown:**
-
-        ### Análisis Clínico Integral por IA
-        **1. RESUMEN DEL CASO:**
-        (Presenta un resumen conciso del paciente, su edad, y el motivo de la consulta actual en el contexto de su historial.)
-        **2. IMPRESIÓN DIAGNÓSTICA Y DIFERENCIALES:**
-        (Basado en la constelación de signos, síntomas y factores de riesgo, ¿cuál es el diagnóstico más probable? Menciona 2 o 3 diagnósticos diferenciales.)
-        **3. ESTRATIFICACIÓN DEL RIESGO:**
-        (Evalúa el riesgo cardiovascular y/o metabólico global del paciente. Clasifícalo como BAJO, MODERADO, ALTO o MUY ALTO y justifica.)
-        **4. PLAN DE MANEJO SUGERIDO:**
-        - **Estudios Diagnósticos:** (Lista de exámenes necesarios.)
-        - **Tratamiento No Farmacológico:** (Recomendaciones clave sobre estilo de vida.)
-        - **Tratamiento Farmacológico:** (Sugiere clases de medicamentos.)
-        - **Metas Terapéuticas:** (Establece objetivos numéricos claros.)
-        **5. PUNTOS CLAVE PARA EDUCACIÓN DEL PACIENTE:**
-        (Proporciona 3-4 puntos en lenguaje sencillo.)
+        Sé directo, técnico pero claro.
         """
         
         try:
             response = _self.model.generate_content(
                 prompt,
-                generation_config=generation_config,
-                safety_settings=safety_settings
+                generation_config={"temperature": 0.2} # Temperatura baja para precisión médica
             )
             return response.text
         except Exception as e:
-            logger.error(f"Error al generar contenido con la IA: {e}")
-            return f"""
-            **Error al contactar al asistente de IA.**
-            **Detalle:** {str(e)}
-            
-            **Posibles Causas:**
-            1.  **Contenido Bloqueado:** La consulta puede haber activado un filtro de seguridad.
-            2.  **Problemas de Red:** Falla en la comunicación con los servidores de Google AI.
-            3.  **Sobrecarga del Servicio:** El servicio de IA puede estar experimentando alta demanda.
-            
-            Por favor, inténtelo de nuevo más tarde o modifique la consulta.
-            """
+            return f"Error en razonamiento clínico: {e}"
