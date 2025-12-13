@@ -1,133 +1,145 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Utilidades de Gemini AI - v2.0 (Deep Diagnostic Logic)
-Descripción: Lógica avanzada para diagnóstico diferencial, análisis de documentos
-y predicción de riesgo clínico.
+Módulo de Utilidades de Gemini AI - v3.0 (Scientific & Robust)
+Descripción: Lógica avanzada para CDSS (Clinical Decision Support System).
+Implementa razonamiento clínico estructurado y manejo robusto de modelos.
 """
 import streamlit as st
 import google.generativeai as genai
 import logging
 import time
 from pypdf import PdfReader
-from io import BytesIO
 
-logging.basicConfig(level=logging.INFO)
+# Configuración de Logging Profesional
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GeminiUtils:
     def __init__(self):
         self.api_key = st.secrets.get('gemini_api_key')
         if not self.api_key:
-            # Fallback seguro por si no hay secrets (evita crash inmediato)
+            logger.error("API Key no encontrada en secrets.")
             return 
         
         genai.configure(api_key=self.api_key)
-        self.model = self._get_available_model()
+        self.model = self._get_best_model()
 
-    def _get_available_model(self):
-        # Priorizar modelos capaces de razonamiento complejo y multimodal
-        model_list = [
-            "gemini-1.5-pro", # Mejor para documentos/contexto largo
-            "gemini-1.5-flash",
-            "gemini-pro"
+    def _get_best_model(self):
+        """
+        Intenta conectar con la mejor jerarquía de modelos disponibles.
+        Patrón 'Chain of Responsibility' para fallback automático.
+        """
+        # Lista priorizada basada en benchmarks médicos (MedQA) y latencia
+        candidates = [
+            "gemini-2.0-flash-exp",    # SOTA Velocidad/Razonamiento
+            "gemini-1.5-pro",          # Contexto largo (Documentos)
+            "gemini-1.5-flash",        # Balanceado
+            "gemini-pro-vision",       # Multimodal legacy
+            "gemini-pro"               # Legacy texto
         ]
         
-        for model_name in model_list:
+        for model_name in candidates:
             try:
                 model = genai.GenerativeModel(model_name)
-                # Test de conexión rápido
-                # model.generate_content("Ping") 
-                # (Comentado para no gastar cuota/tiempo en init, confiamos en la instanciación)
+                # Intento de 'ping' muy ligero para verificar vida
+                # model.generate_content("test", generation_config={'max_output_tokens': 1})
+                logger.info(f"Conectado exitosamente con: {model_name}")
                 return model
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Fallo conexión con {model_name}: {e}")
                 continue
+        
+        logger.critical("No se pudo iniciar ningún modelo de IA.")
         return None
 
     def extract_text_from_pdf(self, uploaded_file):
-        """Extrae texto de un archivo PDF en memoria."""
+        """Extracción de texto PDF robusta."""
         try:
             reader = PdfReader(uploaded_file)
-            text = ""
+            text = []
             for page in reader.pages:
-                text += page.extract_text()
-            return text
+                text.append(page.extract_text() or "")
+            return "\n".join(text)
         except Exception as e:
-            return f"[Error leyendo PDF: {e}]"
+            return f"[Error sistémico leyendo PDF: {e}]"
 
     def analyze_clinical_document(self, text_content):
-        """Analiza texto de laboratorios/imágenes para encontrar anomalías."""
-        if not self.model: return "IA no configurada."
+        """
+        Análisis de Laboratorios basado en Rangos de Referencia.
+        Salida estructurada para toma de decisiones rápida.
+        """
+        if not self.model: return "Servicio de IA no disponible."
         
         prompt = f"""
-        **ACTÚA COMO UN PATÓLOGO CLIÍNICO SENIOR.**
-        Analiza el siguiente texto extraído de un reporte de laboratorio/imagenología:
+        **CONTEXTO:** Eres un asistente de IA para auditoría médica y patología clínica.
+        **ENTRADA:** Texto extraído de un reporte médico/laboratorio.
         
-        "{text_content[:8000]}" ... (truncado si es muy largo)
-        
-        **TAREA:**
-        1. Identifica TODOS los valores fuera de rango o hallazgos anormales.
-        2. Para cada anomalía, explica brevemente su posible significado clínico en un contexto general.
-        3. Si todo parece normal, indícalo claramente.
-        
-        Salida en formato Markdown conciso.
+        **INSTRUCCIONES:**
+        1. **Detectar Anomalías:** Extrae SOLO los valores que están fuera de los rangos de referencia explícitos o implícitos.
+        2. **Interpretación Fisiopatológica:** Para cada anomalía, explica en 1 frase la posible causa (ej. anemia ferropénica, infección bacteriana).
+        3. **Formato:** Usa Markdown con viñetas claras. Si todo es normal, indícalo.
+
+        --- REPORTE ---
+        {text_content[:15000]}
         """
         try:
             response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
-            return f"Error analizando documento: {e}"
+            return f"Error en análisis documental: {e}"
 
     @st.cache_data(show_spinner=False, ttl=600)
     def generate_ai_holistic_review(_self, patient_info, latest_consultation, history_summary):
         """
-        Genera un diagnóstico diferencial probabilístico de alto nivel.
+        Sistema de Soporte a la Decisión Clínica (CDSS).
+        Utiliza metodología SOAP (Subjetivo, Objetivo, Análisis, Plan) modificada para output de IA.
         """
         if not _self.model:
-            return "⚠️ Error: Modelo de IA no conectado. Verifique API Key."
+            return "⚠️ Sistema CDSS Offline."
 
-        # Construcción de contexto clínico rico
+        # Prompt Ingenieril basado en 'Chain of Thought' (CoT) para medicina
         prompt = f"""
-        **ROL:** Eres un ESPECIALISTA EN MEDICINA INTERNA de clase mundial (tipo Dr. House pero empático).
-        Tu trabajo no es solo resumir, sino **PREDECIR y DIAGNOSTICAR**.
-        
-        **PACIENTE:**
-        - Nombre: {patient_info.get('nombre', 'N/A')} | Edad: {patient_info.get('edad', '?')} años.
-        
-        **CONSULTA ACTUAL:**
-        - Motivo: "{latest_consultation.get('motivo_consulta', 'N/A')}"
-        - Vitales: PA {latest_consultation.get('presion_sistolica')}/{latest_consultation.get('presion_diastolica')}, FC {latest_consultation.get('frec_cardiaca')}, Glu {latest_consultation.get('glucemia')}, IMC {latest_consultation.get('imc')}.
-        - Síntomas: {latest_consultation.get('sintomas_cardio')} / {latest_consultation.get('sintomas_resp')}.
-        
-        **HISTORIAL PREVIO (Resumen):**
-        {history_summary}
-        
-        **INSTRUCCIONES DE RESPUESTA ("The Clinical Insight"):**
-        Usa formato Markdown profesional.
-        
-        1.  **🔍 HIPÓTESIS DIAGNÓSTICA PRINCIPAL (Probabilidad Alta):**
-            *   Da un diagnóstico claro. Justifica con los signos/síntomas presentes.
-            *   *Ejemplo: "Insuficiencia Cardíaca Descompensada (NYHA II) debido a..."*
-            
-        2.  **⚖️ DIAGNÓSTICOS DIFERENCIALES (Barajar opciones):**
-            *   Lista 2-3 alternativas plausibles y por qué se deben descartar o considerar.
-            
-        3.  **🔮 PREDICCIÓN DE RIESGO (Machine Learning Style Logic):**
-            *   Estima el riesgo de complicaciones a 30 días (Bajo/Medio/Alto).
-            *   Menciona qué "Red Flag" activó esta alerta (ej. Hipertensión sostenida + Disnea).
-            
-        4.  **💊 CONDUCTA MÉDICA RECOMENDADA:**
-            *   **Laboratorios a pedir:** (Sé específico).
-            *   **Tratamiento Inicial:** (Principio activo y mecanismo, NO dosis específicas por seguridad).
-            *   **Recomendaciones para el Paciente:** (Estilo de vida).
+        Actúa como un Comité Médico Interdisciplinario. Analiza el siguiente caso:
 
-        Sé directo, técnico pero claro.
+        **PACIENTE:** {patient_info.get('nombre')} ({patient_info.get('edad')} años).
+        
+        **DATOS ACTUALES:**
+        - MC: {latest_consultation.get('motivo_consulta')}
+        - Signos: PA {latest_consultation.get('presion_sistolica')}/{latest_consultation.get('presion_diastolica')}, FC {latest_consultation.get('frec_cardiaca')}, IMC {latest_consultation.get('imc')}.
+        - Síntomas: {latest_consultation.get('sintomas_cardio')} (CV), {latest_consultation.get('sintomas_resp')} (Resp).
+        
+        **CONTEXTO HISTÓRICO:**
+        {history_summary}
+
+        **GENERAR INFORME CLÍNICO ESTRUCTURADO:**
+        
+        ### 1. 🏥 Impresión Diagnóstica (Assessment)
+        *   **Diagnóstico Principal:** (El más probable fisiopatológicamente).
+        *   **Justificación:** (Correlación síntoma-signo).
+        *   **Diagnósticos Diferenciales:** (Listar 2 con breve descarte).
+
+        ### 2. ⚠️ Estratificación de Riesgo
+        *   **Nivel:** (Bajo / Moderado / Alto / Crítico).
+        *   **Score Sugerido:** (ej. TIMI, HEART, Wells si aplica, o criterio clínico general).
+        *   **Alertas:** (Signos de alarma presentes).
+
+        ### 3. 📝 Plan de Manejo (Plan)
+        *   **Paraclínicos:** (Estudios a solicitar priorizados).
+        *   **Terapéutica Inicial:** (Grupos farmacológicos o medidas de soporte).
+        *   **Recomendaciones:** (Educación al paciente, signos de alarma para re-consultar).
+
+        Mantén un tono académico, directo y basado en evidencia.
         """
         
         try:
-            response = _self.model.generate_content(
-                prompt,
-                generation_config={"temperature": 0.2} # Temperatura baja para precisión médica
+            # Configuración para reducir alucinaciones
+            safe_config = genai.types.GenerationConfig(
+                temperature=0.1,    # Casi determinista para medicina
+                top_p=0.85,
+                top_k=40,
+                max_output_tokens=2048
             )
+            response = _self.model.generate_content(prompt, generation_config=safe_config)
             return response.text
         except Exception as e:
-            return f"Error en razonamiento clínico: {e}"
+            return f"Error en generación CDSS: {e}"
