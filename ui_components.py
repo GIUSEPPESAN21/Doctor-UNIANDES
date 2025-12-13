@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Módulo de Componentes de Interfaz de Usuario (UI) - v2.0
-Diseño "Medical Grade" - Limpio, Consistente y sin Tablas Genéricas.
+Módulo de Componentes de Interfaz de Usuario (UI) - v3.0
+Consolidado para dar soporte a la Interfaz Unificada (V1 + Mejoras V2).
 """
 import streamlit as st
 
@@ -43,7 +43,7 @@ def load_custom_css():
         h1 { font-size: 2.2rem; background: -webkit-linear-gradient(45deg, #0F52BA, #06B6D4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
         /* --- TARJETAS (CARDS) --- */
-        .medical-card {
+        .card-container, .medical-card {
             background: white;
             border-radius: var(--radius);
             padding: 1.5rem;
@@ -52,47 +52,12 @@ def load_custom_css():
             transition: transform 0.2s, box-shadow 0.2s;
             margin-bottom: 1rem;
         }
-        .medical-card:hover {
+        .card-container:hover, .medical-card:hover {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             border-color: var(--primary);
         }
 
-        /* --- TIMELINE DE CONSULTAS (Reemplaza Tablas) --- */
-        .timeline-item {
-            border-left: 3px solid var(--neutral-200);
-            padding-left: 20px;
-            margin-left: 10px;
-            padding-bottom: 30px;
-            position: relative;
-        }
-        .timeline-item::before {
-            content: '';
-            width: 14px;
-            height: 14px;
-            background: var(--primary);
-            border: 3px solid white;
-            border-radius: 50%;
-            position: absolute;
-            left: -8.5px;
-            top: 0;
-            box-shadow: 0 0 0 2px var(--primary-light);
-        }
-        .timeline-date {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #6B7280;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-        .timeline-content {
-            background: white;
-            border: 1px solid var(--neutral-200);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 5px;
-        }
-
-        /* --- BADGES/ETIQUETAS --- */
+        /* --- BADGES --- */
         .badge {
             display: inline-block;
             padding: 2px 8px;
@@ -103,22 +68,7 @@ def load_custom_css():
         }
         .badge-blue { background: var(--primary-light); color: var(--primary); }
         .badge-green { background: #DCFCE7; color: var(--success); }
-        .badge-red { background: #FEE2E2; color: var(--danger); }
-
-        /* --- METRIC VALUE --- */
-        .big-number {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary);
-            line-height: 1;
-        }
-        .metric-label {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #6B7280;
-            font-weight: 600;
-        }
+        .badge-mid { background: #fee2e2; color: #b91c1c; }
 
         /* --- BOTONES LIMPIOS --- */
         div[data-testid="stButton"] > button {
@@ -130,90 +80,57 @@ def load_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
-# --- COMPONENTES VISUALES ---
+# --- COMPONENTES VISUALES UNIFICADOS ---
+
+def render_hero_header(physician_email):
+    """Encabezado estilo Hero para el Dashboard."""
+    name = physician_email.split('@')[0] if physician_email else "Doctor"
+    st.markdown(f"""
+        <div style="background: linear-gradient(90deg, #0F52BA 0%, #06b6d4 100%); padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="margin:0; color:white;">Bienvenid@, De nuevo.</h2>
+            <p style="margin:0; opacity:0.9;">Dr/a. {name} | Panel de Control Clínico</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 def card_header(title, subtitle=None, icon="🩺"):
     """Encabezado de sección limpio."""
     st.markdown(f"""
         <div style="margin-bottom: 1.5rem;">
-            <h2 style="margin:0; display:flex; align-items:center; gap:10px; font-size:1.5rem;">
-                <span style="background:var(--primary-light); padding:8px; border-radius:8px; font-size:1.2rem;">{icon}</span>
+            <h3 style="margin:0; display:flex; align-items:center; gap:10px;">
+                <span style="background:var(--primary-light); padding:6px; border-radius:8px; font-size:1rem;">{icon}</span>
                 {title}
-            </h2>
-            {f'<p style="margin:5px 0 0 54px; color:#6B7280;">{subtitle}</p>' if subtitle else ''}
+            </h3>
+            {f'<p style="margin:2px 0 0 44px; color:#6B7280; font-size:0.9rem;">{subtitle}</p>' if subtitle else ''}
         </div>
     """, unsafe_allow_html=True)
 
-def render_kpi_card(label, value, trend=None, color_class="blue"):
-    """Tarjeta de métrica pequeña (KPI)."""
-    trend_html = f"<span style='font-size:0.8rem; color:green'>▲ {trend}</span>" if trend else ""
+def card_metric(label, value, delta=None, color_hex="#0F52BA"):
+    """Tarjeta de métrica (KPI) flexible."""
+    delta_html = f"<div style='font-size:0.8rem; color: #059669; margin-top:5px;'>▲ {delta}</div>" if delta else ""
     st.markdown(f"""
-        <div class="medical-card" style="padding: 1rem; text-align: center;">
-            <div class="metric-label">{label}</div>
-            <div class="big-number">{value}</div>
-            {trend_html}
+        <div class="medical-card" style="padding: 1.2rem; border-left: 4px solid {color_hex};">
+            <div style="font-size:0.8rem; text-transform:uppercase; color:#6B7280; font-weight:600;">{label}</div>
+            <div style="font-size:1.8rem; font-weight:800; color:#1F2937; line-height:1.2;">{value}</div>
+            {delta_html}
         </div>
     """, unsafe_allow_html=True)
 
-def render_patient_list_item(patient, on_click):
-    """Tarjeta de paciente en lista (Reemplaza tabla)."""
+def render_patient_card_item(patient, on_click):
+    """Tarjeta de lista de paciente interactiva."""
     with st.container():
-        cols = st.columns([0.1, 3, 2, 2])
-        # Icono visual basado en género o random (placeholder)
-        cols[0].markdown("👤") 
-        
-        with cols[1]:
+        # Usamos columnas de Streamlit para layout responsive
+        c1, c2, c3 = st.columns([3, 2, 1.5])
+        with c1:
             st.markdown(f"**{patient['nombre']}**")
             st.caption(f"ID: {patient['cedula']}")
-        
-        with cols[2]:
+        with c2:
             st.markdown(f"<span class='badge badge-blue'>{patient.get('edad', '?')} Años</span>", unsafe_allow_html=True)
-            
-        with cols[3]:
-            if st.button("Abrir Expediente →", key=f"btn_{patient['id']}", type="secondary", use_container_width=True):
+            st.caption(patient.get('telefono', 'Sin tel.'))
+        with c3:
+            if st.button("Ver Historia ➜", key=f"p_btn_{patient['id']}", type="secondary", use_container_width=True):
                 on_click(patient['id'])
-        st.markdown("<hr style='margin: 0.5rem 0; opacity: 0.1;'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 10px 0; border:0; border-top:1px solid #E5E7EB;'>", unsafe_allow_html=True)
 
-def render_consultation_timeline_item(consultation, on_ai_click):
-    """
-    Renderiza una consulta individual como un evento en una línea de tiempo.
-    Mucho mejor que una fila de tabla.
-    """
-    date_str = consultation['timestamp'].strftime('%d %B %Y • %H:%M')
-    
-    # Determinamos badges de riesgo (simulado logicamente)
-    badges_html = ""
-    bp_sist = consultation.get('presion_sistolica', 0)
-    if bp_sist > 140:
-        badges_html += "<span class='badge badge-red'>Hipertensión</span> "
-    elif bp_sist < 90:
-        badges_html += "<span class='badge badge-warning'>Hipotensión</span> "
-    
-    # Layout HTML/Markdown
-    st.markdown(f"""
-        <div class="timeline-item">
-            <div class="timeline-date">{date_str}</div>
-            <div class="timeline-content">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <strong>{consultation.get('motivo_consulta', 'Sin motivo registrado')}</strong>
-                    <div>{badges_html}</div>
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; background:#F9FAFB; padding:10px; border-radius:6px; font-size:0.9rem;">
-                    <div><span style="color:#6B7280">PA:</span> <b>{consultation.get('presion_sistolica')}/{consultation.get('presion_diastolica')}</b></div>
-                    <div><span style="color:#6B7280">FC:</span> <b>{consultation.get('frec_cardiaca')}</b> lpm</div>
-                    <div><span style="color:#6B7280">Glu:</span> <b>{consultation.get('glucemia')}</b> mg</div>
-                    <div><span style="color:#6B7280">IMC:</span> <b>{consultation.get('imc')}</b></div>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Análisis IA (sección expandible dentro del timeline)
-    if 'ai_analysis' in consultation and consultation['ai_analysis']:
-         with st.expander("🤖 Ver Análisis de IA", expanded=False):
-             st.info(consultation['ai_analysis'])
-    else:
-        # Botón discreto para generar
-        col1, _ = st.columns([1, 4])
-        if col1.button("⚡ Analizar con IA", key=f"ai_btn_{consultation['id']}", type="primary"):
-            on_ai_click(consultation['id'])
+# Mantener compatibilidad con llamadas legacy por si acaso
+render_kpi_card = card_metric
+render_patient_list_item = render_patient_card_item
