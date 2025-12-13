@@ -189,12 +189,17 @@ def render_patient_dashboard():
                 st.rerun()
 
             # Render Loop usando componente visual Timeline
+            # Render Loop usando componente visual Timeline
             for _, row in idx_records.iterrows():
                 # Preparar datos limpios para el componente
                 c_data = row.to_dict()
                 # Asegurar tipos nativos para evitar errores de serializacion visual
                 for k,v in c_data.items():
-                    if pd.isna(v): c_data[k] = "N/A"
+                    # Fix robusto: evitar pd.isna() en listas/arrays
+                    if isinstance(v, (list, tuple)):
+                        continue
+                    if pd.isna(v): 
+                        c_data[k] = "N/A"
                 
                 ui.render_consultation_timeline_item(
                     c_data, 
