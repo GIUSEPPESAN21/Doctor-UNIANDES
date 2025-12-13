@@ -126,7 +126,18 @@ def render_login():
             st.markdown('</div>', unsafe_allow_html=True)
 
 def render_control_panel():
-    ui.render_hero_header(st.session_state.physician_email)
+    # Header con Logout
+    c_head, c_out = st.columns([6, 1])
+    with c_head:
+        ui.render_hero_header(st.session_state.physician_email)
+    with c_out:
+        st.write("")  # Spacer
+        if st.button("🚪 Salir", key="logout_btn", type="secondary"):
+            st.session_state.logged_in = False
+            st.session_state.physician_email = None
+            st.session_state.page = 'login'
+            st.rerun()
+    
     pats = firebase_utils.get_physician_patients(st.session_state.physician_email)
     
     col_list, col_add = st.columns([1.5, 1])

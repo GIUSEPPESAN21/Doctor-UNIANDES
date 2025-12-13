@@ -134,3 +134,76 @@ def render_patient_card_item(patient, on_click):
 # Mantener compatibilidad con llamadas legacy por si acaso
 render_kpi_card = card_metric
 render_patient_list_item = render_patient_card_item
+
+# ==============================================================================
+# TIMELINE COMPONENT (CRITICAL - Was missing!)
+# ==============================================================================
+import pandas as pd
+
+def render_consultation_timeline_item(consultation, on_ai_click):
+    """
+    Renderiza una consulta individual como un evento en una línea de tiempo.
+    Diseño profesional tipo EHR (Electronic Health Record).
+    """
+    # Safe date parsing
+    ts = consultation.get('timestamp')
+    try:
+        if ts is None or (isinstance(ts, float) and pd.isna(ts)) or str(ts) == 'NaT':
+            date_str = "Fecha no registrada"
+        elif hasattr(ts, 'strftime'):
+            date_str = ts.strftime('%d %b %Y • %H:%M')
+        else:
+            date_str = str(ts)[:16]
+    except:
+        date_str = "Fecha desconocida"
+    
+    # Risk badges
+    badges_html = ""
+    try:
+        bp_sist = int(consultation.get('presion_sistolica', 0) or 0)
+        if bp_sist >= 140:
+            badges_html += "<span style='background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:600;'>HIPERTENSIÓN</span> "
+        elif 0 < bp_sist < 90:
+            badges_html += "<span style='background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:600;'>HIPOTENSIÓN</span> "
+    except: pass
+    
+    # Symptoms display
+    symptoms_html = ""
+    for k in ['sintomas_cardio', 'sintomas_resp']:
+        val = consultation.get(k)
+        if isinstance(val, list) and val:
+            symptoms_html += f"<span style='font-size:0.8rem; color:#6B7280;'>{', '.join(val)}</span><br>"
+
+    # Main Layout
+    st.markdown(f"""
+        <div style="border-left: 3px solid #E5E7EB; padding-left: 20px; margin-left: 10px; margin-bottom: 25px; position: relative;">
+            <div style="position:absolute; left:-8px; top:0; width:12px; height:12px; background:#0F52BA; border-radius:50%; border:3px solid white; box-shadow:0 0 0 2px #E1EFFE;"></div>
+            <div style="font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:#6B7280; font-weight:600; margin-bottom:4px;">{date_str}</div>
+            <div style="background:white; border:1px solid #E5E7EB; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+                    <div>
+                        <strong style="font-size:1rem; color:#111827;">{consultation.get('motivo_consulta', 'Sin motivo')[:80]}</strong>
+                        <div style="margin-top:4px;">{symptoms_html}</div>
+                    </div>
+                    <div>{badges_html}</div>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; background:#F9FAFB; padding:12px; border-radius:8px; font-size:0.85rem; text-align:center;">
+                    <div><span style="color:#9CA3AF; font-size:0.7rem;">PRESIÓN</span><br><b>{consultation.get('presion_sistolica', 'N/A')}/{consultation.get('presion_diastolica', 'N/A')}</b></div>
+                    <div><span style="color:#9CA3AF; font-size:0.7rem;">FC</span><br><b>{consultation.get('frec_cardiaca', 'N/A')}</b></div>
+                    <div><span style="color:#9CA3AF; font-size:0.7rem;">GLUCEMIA</span><br><b>{consultation.get('glucemia', 'N/A')}</b></div>
+                    <div><span style="color:#9CA3AF; font-size:0.7rem;">IMC</span><br><b>{consultation.get('imc', 'N/A')}</b></div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # AI Analysis Section
+    ai_report = consultation.get('ai_analysis')
+    if ai_report and ai_report != "N/A":
+        with st.expander("🤖 Análisis Clínico (IA)", expanded=False):
+            st.markdown(ai_report)
+    else:
+        col1, _ = st.columns([1, 4])
+        if col1.button("⚡ Analizar", key=f"ai_btn_{consultation.get('id', 'x')}", type="secondary"):
+            on_ai_click(consultation['id'])
+
